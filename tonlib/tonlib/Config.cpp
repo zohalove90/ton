@@ -19,6 +19,10 @@
 #include "Config.h"
 #include "adnl/adnl-node-id.hpp"
 #include "td/utils/JsonBuilder.h"
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 namespace tonlib {
 td::Result<ton::BlockIdExt> parse_block_id_ext(td::JsonObject &obj) {
@@ -84,10 +88,31 @@ td::Result<Config> Config::parse(std::string str) {
     //return td::Status::Error("Invalid config (4)");
     //}
 
-    TRY_RESULT(ip, td::get_json_object_long_field(object, "ip", false));
+    auto _ip = td::get_json_object_int_field(object, "ip", false);
+    int ip;
+    td::string str_ip;
+    if (_ip.is_error()) {
+        auto _hostname = td::get_json_object_string_field(object, "hostname", false);
+            if(_hostname.is_error()) {
+                return _hostname.move_as_error();
+            }
+        auto hostname = _hostname.move_as_ok();
+        struct addrinfo hints, * result;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+        auto error = getaddrinfo(hostname.c_str(), NULL, &hints, &result);
+        if(error != 0) {
+            return td::Status::Error("Either correct ip or hostname must be presented in liteserver config");
+        }
+        str_ip = inet_ntoa(((struct sockaddr_in*)result->ai_addr)->sin_addr);
+    }  else {
+        ip = _ip.move_as_ok();
+        str_ip = td::IPAddress::ipv4_to_str(static_cast<td::int32>(ip));
+    }
+    //TRY_RESULT(ip, td::get_json_object_long_field(object, "ip", false));
     TRY_RESULT(port, td::get_json_object_int_field(object, "port", false));
     Config::LiteClient client;
-    TRY_STATUS(client.address.init_host_port(td::IPAddress::ipv4_to_str(static_cast<td::int32>(ip)), port));
+    TRY_STATUS(client.address.init_host_port(str_ip, port));
 
     TRY_RESULT(id_obj, td::get_json_object_field(object, "id", td::JsonValue::Type::Object, false));
     auto &id = id_obj.get_object();
