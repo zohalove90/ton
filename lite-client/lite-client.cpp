@@ -119,7 +119,7 @@ void TestNode::run() {
                                     : td::Random::fast(0, static_cast<td::uint32>(gc.liteservers_.size() - 1));
     CHECK(idx >= 0 && static_cast<td::uint32>(idx) <= gc.liteservers_.size());
     auto& cli = gc.liteservers_[idx];
-    remote_addr_.init_host_port(td::IPAddress::ipv4_to_str(cli->ip_), cli->port_).ensure();
+    remote_addr_.init_host_port(cli->host_, cli->port_).ensure();
     remote_public_key_ = ton::PublicKey{cli->id_};
     td::TerminalIO::out() << "using liteserver " << idx << " with addr " << remote_addr_ << "\n";
     if (gc.validator_ && gc.validator_->zero_state_) {
