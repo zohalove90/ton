@@ -46,6 +46,8 @@ td::Result<std::vector<td::Ref<ShardTopBlockDescription>>> create_new_shard_bloc
 
 td::Ref<BlockSignatureSet> create_signature_set(std::vector<BlockSignature> sig_set);
 
+void run_check_external_message(td::BufferSlice data, td::actor::ActorId<ValidatorManager> manager, td::Promise<td::Unit> promise);
+
 void run_accept_block_query(BlockIdExt id, td::Ref<BlockData> data, std::vector<BlockIdExt> prev,
                             td::Ref<ValidatorSet> validator_set, td::Ref<BlockSignatureSet> signatures,
                             td::Ref<BlockSignatureSet> approve_signatures, bool send_broadcast,

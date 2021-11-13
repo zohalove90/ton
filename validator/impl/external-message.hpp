@@ -18,6 +18,8 @@
 */
 #pragma once
 
+
+#include "interfaces/validator-manager.h"
 #include "validator/interfaces/external-message.h"
 #include "auto/tl/ton_api.h"
 #include "adnl/utils.hpp"
@@ -49,6 +51,13 @@ class ExtMessageQ : public ExtMessage {
   }
   ExtMessageQ(td::BufferSlice data, td::Ref<vm::Cell> root, AccountIdPrefixFull shard);
   static td::Result<td::Ref<ExtMessageQ>> create_ext_message(td::BufferSlice data);
+  static void run_message(td::BufferSlice data, td::actor::ActorId<ton::validator::ValidatorManager> manager,
+                        td::Promise<td::Unit> promise);
+  static void reject_message(/*td::Promise<td::Unit> promise*/ td::Status reason);
+  static void continue_run_message_with_mc_state(td::actor::ActorId<ton::validator::ValidatorManager> manager,
+                                                 td::Ref<ton::validator::MasterchainState> mc_state, BlockIdExt blkid,
+                                                 td::Promise<td::Unit> promise,
+                                                 ton::StdSmcAddress addr, ton::WorkchainId wc);
 };
 
 }  // namespace validator

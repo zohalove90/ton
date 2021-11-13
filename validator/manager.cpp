@@ -382,6 +382,10 @@ void ValidatorManagerImpl::new_external_message(td::BufferSlice data) {
   }
 }
 
+void ValidatorManagerImpl::check_external_message(td::BufferSlice data, td::Promise<td::Unit> promise) {
+  run_check_external_message(std::move(data), actor_id(this), std::move(promise));
+}
+
 void ValidatorManagerImpl::new_ihr_message(td::BufferSlice data) {
   if (!is_validator()) {
     return;

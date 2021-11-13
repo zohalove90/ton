@@ -116,6 +116,11 @@ td::Result<td::Ref<ExtMessage>> create_ext_message(td::BufferSlice data) {
   return std::move(res);
 }
 
+void run_check_external_message(td::BufferSlice data, td::actor::ActorId<ValidatorManager> manager, td::Promise<td::Unit> promise) {
+  ExtMessageQ::run_message(std::move(data), std::move(manager), std::move(promise));
+  //promise.set_value(td::Unit());
+}
+
 td::Result<td::Ref<IhrMessage>> create_ihr_message(td::BufferSlice data) {
   TRY_RESULT(res, IhrMessageQ::create_ihr_message(std::move(data)));
   return std::move(res);

@@ -16,11 +16,13 @@
 
     Copyright 2017-2020 Telegram Systems LLP
 */
+
 #include "external-message.hpp"
 #include "vm/boc.h"
 #include "block/block-parse.h"
 #include "block/block-auto.h"
 #include "block/block-db.h"
+
 
 namespace ton {
 
@@ -72,6 +74,25 @@ td::Result<Ref<ExtMessageQ>> ExtMessageQ::create_ext_message(td::BufferSlice dat
   }
   return Ref<ExtMessageQ>{true, std::move(data), std::move(ext_msg), dest_prefix};
 }
+
+void ExtMessageQ::run_message(td::BufferSlice data, td::actor::ActorId<ton::validator::ValidatorManager> manager,
+                        td::Promise<td::Unit> promise) {
+  auto R = create_ext_message(std::move(data));
+  if (R.is_error()) {
+    return promise.set_error(R.move_as_error_prefix("failed to parse external message "));
+  }
+  auto M = R.move_as_ok();
+  auto root = M->root_cell();
+  block::gen::CommonMsgInfo::Record_ext_in_msg_info info;
+  tlb::unpack_cell_inexact(root, info); // checked in create message
+  ton::StdSmcAddress addr;
+  ton::WorkchainId wc;
+  if(!block::tlb::t_MsgAddressInt.extract_std_address(info.dest, wc, addr)) {
+    return promise.set_error(td::Status::Error(PSLICE() << "Can't parse destination address"));
+  }
+  promise.set_value(td::Unit());
+}
+
 
 }  // namespace validator
 }  // namespace ton
