@@ -374,14 +374,17 @@ void ValidatorManagerImpl::new_external_message(td::BufferSlice data) {
     VLOG(VALIDATOR_NOTICE) << "dropping bad ihr message: " << R.move_as_error();
     return;
   }
-  auto M = std::make_unique<MessageExt<ExtMessage>>(R.move_as_ok());
-  auto id = M->ext_id();
+  add_external_message(R.move_as_ok());
+}
+
+void ValidatorManagerImpl::add_external_message(td::Ref<ExtMessage> msg) {
+  auto message = std::make_unique<MessageExt<ExtMessage>>(msg);
+  auto id = message->ext_id();
   if (ext_messages_hashes_.count(id.hash) == 0) {
-    ext_messages_.emplace(id, std::move(M));
+    ext_messages_.emplace(id, std::move(message));
     ext_messages_hashes_.emplace(id.hash, id);
   }
 }
-
 void ValidatorManagerImpl::check_external_message(td::BufferSlice data, td::Promise<td::Unit> promise) {
   run_check_external_message(std::move(data), actor_id(this), std::move(promise));
 }
@@ -1356,6 +1359,7 @@ void ValidatorManagerImpl::send_get_next_key_blocks_request(BlockIdExt block_id,
 
 void ValidatorManagerImpl::send_external_message(td::Ref<ExtMessage> message) {
   callback_->send_ext_message(message->shard(), message->serialize());
+  add_external_message(std::move(message));
 }
 
 void ValidatorManagerImpl::send_ihr_message(td::Ref<IhrMessage> message) {
