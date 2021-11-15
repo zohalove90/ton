@@ -83,6 +83,8 @@ void run_collate_hardfork(ShardIdFull shard, const BlockIdExt& min_masterchain_b
                           td::Promise<BlockCandidate> promise);
 void run_liteserver_query(td::BufferSlice data, td::actor::ActorId<ValidatorManager> manager,
                           td::actor::ActorId<LiteServerCache> cache, td::Promise<td::BufferSlice> promise);
+void run_fetch_account_state(WorkchainId wc, StdSmcAddress  addr, td::actor::ActorId<ValidatorManager> manager,
+                             td::Promise<std::tuple<td::Ref<vm::CellSlice>,UnixTime,LogicalTime,std::unique_ptr<block::ConfigInfo>>> promise);
 void run_validate_shard_block_description(td::BufferSlice data, BlockHandle masterchain_block,
                                           td::Ref<MasterchainState> masterchain_state,
                                           td::actor::ActorId<ValidatorManager> manager, td::Timestamp timeout,
