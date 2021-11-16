@@ -74,6 +74,9 @@ class MessageExt {
   auto hash() const {
     return message_->hash();
   }
+  auto address() const {
+    return std::make_pair(message_->wc(), message_->addr());
+  }
   bool is_active() {
     if (!active_) {
       if (reactivate_at_.is_in_past()) {
@@ -210,6 +213,7 @@ class ValidatorManagerImpl : public ValidatorManager {
   // DATA FOR COLLATOR
   std::map<ShardTopBlockDescriptionId, td::Ref<ShardTopBlockDescription>> shard_blocks_;
   std::map<MessageId<ExtMessage>, std::unique_ptr<MessageExt<ExtMessage>>> ext_messages_;
+  std::map<std::pair<ton::WorkchainId,ton::StdSmcAddress>, std::map<ExtMessage::Hash, MessageId<ExtMessage>>> ext_addr_messages_;
   std::map<ExtMessage::Hash, MessageId<ExtMessage>> ext_messages_hashes_;
   // IHR ?
   std::map<MessageId<IhrMessage>, std::unique_ptr<MessageExt<IhrMessage>>> ihr_messages_;
