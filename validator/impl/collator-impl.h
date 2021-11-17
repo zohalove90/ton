@@ -122,7 +122,7 @@ class Collator final : public td::actor::Actor {
                                                          block::StoragePhaseConfig* storage_phase_cfg,
                                                          block::ComputePhaseConfig* compute_phase_cfg,
                                                          block::ActionPhaseConfig* action_phase_cfg,
-                                                         LogicalTime after_lt);
+                                                         bool external, LogicalTime after_lt);
 
  private:
   void start_up() override;

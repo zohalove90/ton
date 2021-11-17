@@ -79,8 +79,7 @@ void LiteQuery::abort_query(td::Status reason) {
   LOG(INFO) << "aborted liteserver query: " << reason.to_string();
   if (acc_state_promise_) {
     acc_state_promise_.set_error(std::move(reason));
-  }
-  if (promise_) {
+  } else if (promise_) {
     promise_.set_error(std::move(reason));
   }
   stop();

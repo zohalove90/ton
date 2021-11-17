@@ -1559,7 +1559,7 @@ bool Collator::fetch_config_params() {
   auto tuple = impl_fetch_config_params(std::move(config_),
                                       &old_mparams_, &storage_prices_, &storage_phase_cfg_,
                                       &rand_seed_, &compute_phase_cfg_, &action_phase_cfg_,
-                                      &basechain_create_fee_, &basechain_create_fee_,
+                                      &masterchain_create_fee_, &basechain_create_fee_,
                                       workchain()
                                      );
   config_ = std::move(tuple.first);
@@ -2247,10 +2247,16 @@ Ref<vm::Cell> Collator::create_ordinary_transaction(Ref<vm::Cell> msg_root) {
   auto res_tuple = impl_create_ordinary_transaction(msg_root, acc, now_, start_lt,
                                                     &storage_phase_cfg_, &compute_phase_cfg_,
                                                     &action_phase_cfg_,
-                                                    external? last_proc_int_msg_.first : 0
+                                                    external, last_proc_int_msg_.first
                                                    );
   if(res_tuple.second.is_error()) {
-    fatal_error(res_tuple.second.move_as_error());
+    auto error = res_tuple.second.move_as_error();
+    if(error.code() == -701) {
+      // ignorable errors
+      LOG(DEBUG) << error.message();
+      return {};
+    }
+    fatal_error(std::move(error));
     return {};
   }
   std::unique_ptr<block::Transaction> trans = std::move(res_tuple.first);
@@ -2274,33 +2280,34 @@ Ref<vm::Cell> Collator::create_ordinary_transaction(Ref<vm::Cell> msg_root) {
   return trans_root;
 }
 
+// If td::status::error_code == 669 - Fatal Error block can not be produced
+// if td::status::error_code == 701 - Transaction can not be included into block, but it's ok (external or too early internal)
 std::pair<std::unique_ptr<block::Transaction>,td::Status> Collator::impl_create_ordinary_transaction(Ref<vm::Cell> msg_root,
                                                          block::Account* acc,
                                                          UnixTime utime, LogicalTime lt,
                                                          block::StoragePhaseConfig* storage_phase_cfg,
                                                          block::ComputePhaseConfig* compute_phase_cfg,
                                                          block::ActionPhaseConfig* action_phase_cfg,
-                                                         LogicalTime after_lt) {
+                                                         bool external, LogicalTime after_lt) {
   if (acc->last_trans_end_lt_ >= lt && acc->transactions.empty()) {
     return std::make_pair(nullptr,
                           td::Status::Error(-669, PSTRING() << "last transaction time in the state of account " << acc->workchain << ":" << acc->addr.to_hex()
                           << " is too large"));
   }
   auto trans_min_lt = lt;
-  bool external = bool(after_lt);
   if (external) {
     // transactions processing external messages must have lt larger than all processed internal messages
     trans_min_lt = std::max(trans_min_lt, after_lt);
   }
-  
+
   std::unique_ptr<block::Transaction> trans =
       std::make_unique<block::Transaction>(*acc, block::Transaction::tr_ord, trans_min_lt + 1, utime, msg_root);
   bool ihr_delivered = false;  // FIXME
   if (!trans->unpack_input_msg(ihr_delivered, action_phase_cfg)) {
     if (external) {
       // inbound external message was not accepted
-      LOG(DEBUG) << "inbound external message rejected by account " << acc->addr.to_hex()
-                 << " before smart-contract execution";
+      return std::make_pair(nullptr,td::Status::Error(-701,"inbound external message rejected by account "s + acc->addr.to_hex() +
+                                                           " before smart-contract execution"));
       }
     return std::make_pair(nullptr,td::Status::Error(-669,"cannot unpack input message for a new transaction"));
   }
@@ -2325,9 +2332,9 @@ std::pair<std::unique_ptr<block::Transaction>,td::Status> Collator::impl_create_
   if (!trans->compute_phase->accepted) {
     if (external) {
       // inbound external message was not accepted
-      LOG(DEBUG) << "inbound external message rejected by transaction " << acc->addr.to_hex();
+        return std::make_pair(nullptr,td::Status::Error(-701,"inbound external message rejected by transaction "s + acc->addr.to_hex()));
       } else if (trans->compute_phase->skip_reason == block::ComputePhase::sk_none) {
-      return std::make_pair(nullptr,td::Status::Error(-669,"new ordinary transaction for smart contract "s + acc->addr.to_hex() +
+        return std::make_pair(nullptr,td::Status::Error(-669,"new ordinary transaction for smart contract "s + acc->addr.to_hex() +
                   " has not been accepted by the smart contract (?)"));
       }
   }

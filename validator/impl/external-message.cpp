@@ -104,15 +104,15 @@ void ExtMessageQ::run_message(td::BufferSlice data, td::actor::ActorId<ton::vali
           promise.set_error(td::Status::Error(PSLICE() << "Failed to get account state"));
         } else {
           auto tuple = res.move_as_ok();
-          block::Account *acc;
+          block::Account acc;
           auto shard_acc = std::move(std::get<0>(tuple));
           auto utime = std::get<1>(tuple);
           auto lt = std::get<2>(tuple);
           auto config = std::move(std::get<3>(tuple));
-          if(!acc->unpack(shard_acc, {}, utime, false)) {
+          if(!acc.unpack(shard_acc, {}, utime, false)) {
             promise.set_error(td::Status::Error(PSLICE() << "Failed to unpack account state"));
           }
-          if(run_message_on_account(wc, acc, utime, lt + 1, msg_root, std::move(config))) {
+          if(run_message_on_account(wc, &acc, utime, lt + 1, msg_root, std::move(config))) {
             promise.set_value(td::Unit());
           } else {
             promise.set_error(td::Status::Error(PSLICE() << "External message was not accepted"));
@@ -144,9 +144,9 @@ bool ExtMessageQ::run_message_on_account(ton::WorkchainId wc,
    auto res_tuple = Collator::impl_create_ordinary_transaction(msg_root, acc, utime, lt,
                                                     &storage_phase_cfg_, &compute_phase_cfg_,
                                                     &action_phase_cfg_,
-                                                    lt);
+                                                    true, lt);
    if(res_tuple.second.is_error()) {
-    //LOG(DEBUG)?
+    LOG(DEBUG) << "Cannot run message on account" << res_tuple.second.message();
     //fatal_error(res_tuple.second.move_as_error());
     return false;
    }
