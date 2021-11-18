@@ -136,21 +136,27 @@ bool ExtMessageQ::run_message_on_account(ton::WorkchainId wc,
    block::ActionPhaseConfig action_phase_cfg_;
    td::RefInt256 masterchain_create_fee, basechain_create_fee;
 
-   auto res = Collator::impl_fetch_config_params(std::move(config), &old_mparams,
+   auto fetch_res = Collator::impl_fetch_config_params(std::move(config), &old_mparams,
                                                  &storage_prices_, &storage_phase_cfg_,
                                                  &rand_seed_, &compute_phase_cfg_,
                                                  &action_phase_cfg_, &masterchain_create_fee,
                                                  &basechain_create_fee, wc);
-   auto res_tuple = Collator::impl_create_ordinary_transaction(msg_root, acc, utime, lt,
+   if(fetch_res.is_error()) {
+    auto error = fetch_res.move_as_error();
+    LOG(DEBUG) << "Cannot fetch config params" << error.message();
+    return false;
+   }
+
+   auto res = Collator::impl_create_ordinary_transaction(msg_root, acc, utime, lt,
                                                     &storage_phase_cfg_, &compute_phase_cfg_,
                                                     &action_phase_cfg_,
                                                     true, lt);
-   if(res_tuple.second.is_error()) {
-    LOG(DEBUG) << "Cannot run message on account" << res_tuple.second.message();
-    //fatal_error(res_tuple.second.move_as_error());
+   if(res.is_error()) {
+    auto error = res.move_as_error();
+    LOG(DEBUG) << "Cannot run message on account" << error.message();
     return false;
    }
-   std::unique_ptr<block::Transaction> trans = std::move(res_tuple.first);
+   std::unique_ptr<block::Transaction> trans = res.move_as_ok();
 
    auto trans_root = trans->commit(*acc);
    if (trans_root.is_null()) {
