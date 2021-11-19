@@ -111,11 +111,12 @@ void ExtMessageQ::run_message(td::BufferSlice data, td::actor::ActorId<ton::vali
           auto config = std::move(std::get<3>(tuple));
           if(!acc.unpack(shard_acc, {}, utime, false)) {
             promise.set_error(td::Status::Error(PSLICE() << "Failed to unpack account state"));
-          }
-          if(run_message_on_account(wc, &acc, utime, lt + 1, msg_root, std::move(config))) {
-            promise.set_value(td::Unit());
           } else {
-            promise.set_error(td::Status::Error(PSLICE() << "External message was not accepted"));
+            if(run_message_on_account(wc, &acc, utime, lt + 1, msg_root, std::move(config))) {
+              promise.set_value(td::Unit());
+            } else {
+              promise.set_error(td::Status::Error(PSLICE() << "External message was not accepted"));
+            }
           }
         }
       }
