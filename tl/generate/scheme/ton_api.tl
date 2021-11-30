@@ -663,6 +663,8 @@ engine.validator.checkDhtServers id:int256 = engine.validator.DhtServersStatus;
 
 engine.validator.controlQuery data:bytes = Object;
 
+engine.validator.importCertificate overlay_id:int256 local_id:adnl.id.short key:engine.validator.KeyHash cert:overlay.Certificate = engine.validator.Success;
+
 ---types---
 
 storage.pong = storage.Pong;

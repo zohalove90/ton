@@ -903,3 +903,65 @@ class CheckDhtServersQuery : public Query {
  private:
   ton::PublicKeyHash id_;
 };
+
+class SignCertificateQuery : public Query {
+ public:
+  SignCertificateQuery(td::actor::ActorId<ValidatorEngineConsole> console, Tokenizer tokenizer)
+      : Query(console, std::move(tokenizer)) {
+  }
+  td::Status run() override;
+  td::Status send() override;
+  td::Status receive(td::BufferSlice data) override;
+  static std::string get_name() {
+    return "signcert";
+  }
+  static std::string get_help() {
+    return "signcert <overlayid> <adnlid> <expireat> <maxsize> <signwith> <outfile>\tsign overlay certificate by <signwith> key";
+  }
+  std::string name() const override {
+    return get_name();
+  }
+
+  void receive_pubkey(td::BufferSlice R);
+  void receive_signature(td::BufferSlice R);
+
+
+ private:
+   void save_certificate();
+
+  td::Bits256 overlay_;
+  td::Bits256 id_;
+  td::int32 expire_at_;
+  td::uint32 max_size_;
+  std::string out_file_;
+  ton::PublicKeyHash signer_;
+  td::BufferSlice signature_;
+  std::unique_ptr<ton::ton_api::PublicKey> pubkey_;
+  bool has_signature_{0};
+  bool has_pubkey_{0};
+};
+
+class ImportCertificateQuery : public Query {
+ public:
+  ImportCertificateQuery(td::actor::ActorId<ValidatorEngineConsole> console, Tokenizer tokenizer)
+      : Query(console, std::move(tokenizer)) {
+  }
+  td::Status run() override;
+  td::Status send() override;
+  td::Status receive(td::BufferSlice data) override;
+  static std::string get_name() {
+    return "importcert";
+  }
+  static std::string get_help() {
+    return "importcert <overlayid> <adnlid> <key> <certfile>\timport overlay certificate for specific key";
+  }
+  std::string name() const override {
+    return get_name();
+  }
+
+ private:
+  td::Bits256 overlay_;
+  td::Bits256 id_;
+  ton::PublicKeyHash kh_;
+  std::string in_file_;
+};
