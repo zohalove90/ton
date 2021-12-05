@@ -334,6 +334,8 @@ x{A926} @Defop RSHIFTC
 x{A935} @Defop(8u+1) RSHIFTR#
 x{A936} @Defop(8u+1) RSHIFTC#
 x{A938} @Defop(8u+1) MODPOW2#
+x{A939} @Defop(8u+1) MODPOW2R#
+x{A93A} @Defop(8u+1) MODPOW2C#
 x{A984} @Defop MULDIV
 x{A985} @Defop MULDIVR
 x{A98C} @Defop MULDIVMOD

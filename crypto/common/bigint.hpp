@@ -314,8 +314,15 @@ class BigIntG {
     digits[0] = x;
   }
   BigIntG(Normalize, word_t x) : n(1) {
-    digits[0] = x;
-    normalize_bool();
+    if (x >= -Tr::Half && x < Tr::Half) {
+      digits[0] = x;
+    } else if (len <= 1) {
+      digits[0] = x;
+      normalize_bool();
+    } else {
+      digits[0] = ((x + Tr::Half) & (Tr::Base - 1)) - Tr::Half;
+      digits[n++] = (x >> Tr::word_shift) + (digits[0] < 0);
+    }
   }
   BigIntG(const BigIntG& x) : n(x.n) {
     std::memcpy(digits, x.digits, n * sizeof(word_t));
@@ -757,7 +764,7 @@ bool AnyIntView<Tr>::add_pow2_any(int exponent, int factor) {
   while (size() <= k) {
     digits[inc_size()] = 0;
   }
-  digits[k] += (factor << dm.rem);
+  digits[k] += ((word_t)factor << dm.rem);
   return true;
 }
 
@@ -1087,12 +1094,16 @@ int AnyIntView<Tr>::cmp_any(const AnyIntView<Tr>& yp) const {
 
 template <class Tr>
 int AnyIntView<Tr>::cmp_any(word_t y) const {
-  if (size() > 1) {
-    return top_word() < 0 ? -1 : 1;
-  } else if (size() == 1) {
+  if (size() == 1) {
     return digits[0] < y ? -1 : (digits[0] > y ? 1 : 0);
-  } else {
+  } else if (!size()) {
     return 0x80000000;
+  } else if (size() == 2 && (y >= Tr::Half || y < -Tr::Half)) {
+    word_t x0 = digits[0] & (Tr::Base - 1), y0 = y & (Tr::Base - 1);
+    word_t x1 = digits[1] + (digits[0] >> Tr::word_shift), y1 = (y >> Tr::word_shift);
+    return x1 < y1 ? -1 : (x1 > y1 ? 1 : (x0 < y0 ? -1 : (x0 > y0 ? 1 : 0)));
+  } else {
+    return top_word() < 0 ? -1 : 1;
   }
 }
 
@@ -1312,10 +1323,8 @@ bool AnyIntView<Tr>::mod_div_any(const AnyIntView<Tr>& yp, AnyIntView<Tr>& quot,
       if (k > quot.max_size()) {
         return invalidate_bool();
       }
-      quot.set_size(max(k,1));
-      for(int qi=0; qi< max(k,1); qi++) {
-        quot.digits[qi]=0;
-      }
+      quot.set_size(max(k, 1));
+      quot.digits[0] = 0;
     } else {
       if (k >= quot.max_size()) {
         return invalidate_bool();
@@ -1466,21 +1475,17 @@ bool AnyIntView<Tr>::mod_pow2_any(int exponent) {
       digits[size() - 1] = 0;
       digits[inc_size()] = ((word_t)1 << (q - word_shift));
     }
-    if (q - word_shift == -1 && size() < max_size() - 1) {
+    if (q - word_shift == -1 && size() < max_size()) {
       digits[size() - 1] = -Tr::Half;
       digits[inc_size()] = 1;
     } else {
       digits[size() - 1] = pow;
     }
     return true;
-  } else if (v >= Tr::Half) {
-    if (size() == max_size() - 1) {
-      return invalidate_bool();
-    } else {
-      digits[size() - 1] = v | -Tr::Half;
-      digits[inc_size()] = ((word_t)1 << (q - word_shift));
-      return true;
-    }
+  } else if (v >= Tr::Half && size() < max_size()) {
+    digits[size() - 1] = v & (Tr::Base - 1);
+    digits[inc_size()] = (v >> word_shift);
+    return true;
   } else {
     digits[size() - 1] = v;
     return true;
