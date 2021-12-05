@@ -26,6 +26,8 @@
     Copyright 2017-2020 Telegram Systems LLP
 */
 #include "validator-engine-console-query.h"
+#include "auto/tl/ton_api.h"
+#include "td/utils/StringBuilder.h"
 #include "validator-engine-console.h"
 #include "terminal/terminal.h"
 #include "td/utils/filesystem.h"
@@ -818,6 +820,34 @@ td::Status ImportCertificateQuery::send() {
   td::actor::send_closure(console_, &ValidatorEngineConsole::envelope_send_query, std::move(b), create_promise());
   return td::Status::OK();
 }
+td::Status GetOverlaysStatsQuery::run() {
+  return td::Status::OK();
+}
+
+td::Status GetOverlaysStatsQuery::send() {
+  auto b = ton::create_serialize_tl_object<ton::ton_api::engine_validator_getOverlaysStats>();
+  td::actor::send_closure(console_, &ValidatorEngineConsole::envelope_send_query, std::move(b), create_promise());
+  return td::Status::OK();
+}
+
+td::Status GetOverlaysStatsQuery::receive(td::BufferSlice data) {
+  TRY_RESULT_PREFIX(f, ton::fetch_tl_object<ton::ton_api::engine_validator_overlaysStats>(data.as_slice(), true),
+                    "received incorrect answer: ");
+  for (auto &s : f->overlays_) {
+    td::StringBuilder sb;
+    sb << "overlay_id=" << s->overlay_id_ << " adnl_id=" << s->adnl_id_ << "\n";
+    sb << "  nodes:";
+    for (auto &n : s->nodes_) {
+      sb << "   " << n->id_ << "\n";
+    }
+    sb << "  stats:\n";
+    for (auto &t : s->stats_) {
+      sb << "    " << t->key_ << "\t" << t->value_ << "\n";
+    }
+    td::TerminalIO::output(sb.as_cslice());
+  }
+  return td::Status::OK();
+}
 
 
 td::Status ImportCertificateQuery::receive(td::BufferSlice data) {
@@ -883,4 +913,3 @@ td::Status ImportShardOverlayCertificateQuery::receive(td::BufferSlice data) {
   td::TerminalIO::out() << "successfully sent certificate to overlay manager\n";
   return td::Status::OK();
 }
-

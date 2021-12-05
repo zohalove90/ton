@@ -620,6 +620,11 @@ engine.validator.proposalVote perm_key:int256 to_send:bytes = engine.validator.P
 engine.validator.dhtServerStatus id:int256 status:int = engine.validator.DhtServerStatus;
 engine.validator.dhtServersStatus servers:(vector engine.validator.dhtServerStatus) = engine.validator.DhtServersStatus;
 
+engine.validator.overlayStats overlay_id:int256 overlay_id_full:PublicKey adnl_id:int256 nodes:(vector adnl.id.short) 
+                              stats:(vector engine.validator.oneStat) = engine.validator.OverlayStats;
+engine.validator.overlaysStats overlays:(vector engine.validator.overlayStats) = engine.validator.OverlaysStats;
+
+
 ---functions---
 
 engine.validator.getTime = engine.validator.Time;
@@ -660,6 +665,8 @@ engine.validator.createProposalVote vote:bytes = engine.validator.ProposalVote;
 engine.validator.createComplaintVote election_id:int vote:bytes = engine.validator.ProposalVote; 
 
 engine.validator.checkDhtServers id:int256 = engine.validator.DhtServersStatus;
+
+engine.validator.getOverlaysStats = engine.validator.OverlaysStats;
 
 engine.validator.controlQuery data:bytes = Object;
 

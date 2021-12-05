@@ -27,6 +27,11 @@
 */
 #include "validator-engine.hpp"
 
+#include "auto/tl/ton_api.h"
+#include "overlay-manager.h"
+#include "td/actor/actor.h"
+#include "tl-utils/tl-utils.hpp"
+#include "tl/TlObject.h"
 #include "ton/ton-types.h"
 #include "ton/ton-tl.hpp"
 #include "ton/ton-io.hpp"
@@ -3236,6 +3241,35 @@ void ValidatorEngine::run_control_query(ton::ton_api::engine_validator_signShard
 }
 
 
+void ValidatorEngine::run_control_query(ton::ton_api::engine_validator_getOverlaysStats &query, td::BufferSlice data,
+                                        ton::PublicKeyHash src, td::uint32 perm, td::Promise<td::BufferSlice> promise) {
+  if (!(perm & ValidatorEnginePermissions::vep_default)) {
+    promise.set_value(create_control_query_error(td::Status::Error(ton::ErrorCode::error, "not authorized")));
+    return;
+  }
+
+  if (keyring_.empty()) {
+    promise.set_value(create_control_query_error(td::Status::Error(ton::ErrorCode::notready, "keyring not started")));
+    return;
+  }
+
+  if (!started_) {
+    promise.set_value(create_control_query_error(td::Status::Error(ton::ErrorCode::notready, "not started")));
+    return;
+  }
+
+  td::actor::send_closure(overlay_manager_, &ton::overlay::Overlays::get_stats,
+                          [promise = std::move(promise)](
+                              td::Result<ton::tl_object_ptr<ton::ton_api::engine_validator_overlaysStats>> R) mutable {
+                            if (R.is_ok()) {
+                              promise.set_value(ton::serialize_tl_object(R.move_as_ok(), true));
+                            } else {
+                              promise.set_value(create_control_query_error(
+                                  td::Status::Error(ton::ErrorCode::notready, "overlay manager not ready")));
+                            }
+                          });
+}
+
 void ValidatorEngine::process_control_query(td::uint16 port, ton::adnl::AdnlNodeIdShort src,
                                             ton::adnl::AdnlNodeIdShort dst, td::BufferSlice data,
                                             td::Promise<td::BufferSlice> promise) {
@@ -3387,7 +3421,8 @@ int main(int argc, char *argv[]) {
     SET_VERBOSITY_LEVEL(v);
   });
   p.add_option('V', "version", "shows validator-engine build information", [&]() {
-    std::cout << "validator-engine build information: [ Commit: " << GitMetadata::CommitSHA1() << ", Date: " << GitMetadata::CommitDate() << "]\n";
+    std::cout << "validator-engine build information: [ Commit: " << GitMetadata::CommitSHA1()
+              << ", Date: " << GitMetadata::CommitDate() << "]\n";
     std::exit(0);
   });
   p.add_option('h', "help", "prints_help", [&]() {
@@ -3467,18 +3502,20 @@ int main(int argc, char *argv[]) {
         acts.push_back([&x, seq]() { td::actor::send_closure(x, &ValidatorEngine::add_unsafe_catchain, seq); });
         return td::Status::OK();
       });
-  p.add_checked_option(
-      'F', "unsafe-catchain-rotate", "use forceful and DANGEROUS catchain rotation", [&](td::Slice params) {
-        auto pos1 = params.find(':');
-        TRY_RESULT(b_seq, td::to_integer_safe<ton::BlockSeqno>(params.substr(0, pos1)));
-        params = params.substr(++pos1, params.size());
-        auto pos2 = params.find(':');
-        TRY_RESULT(cc_seq, td::to_integer_safe<ton::CatchainSeqno>(params.substr(0, pos2)));
-        params = params.substr(++pos2, params.size());
-        auto h = std::stoi(params.substr(0, params.size()).str());
-        acts.push_back([&x, b_seq, cc_seq, h]() { td::actor::send_closure(x, &ValidatorEngine::add_unsafe_catchain_rotation, b_seq, cc_seq, h); });
-        return td::Status::OK();
-      });
+  p.add_checked_option('F', "unsafe-catchain-rotate", "use forceful and DANGEROUS catchain rotation",
+                       [&](td::Slice params) {
+                         auto pos1 = params.find(':');
+                         TRY_RESULT(b_seq, td::to_integer_safe<ton::BlockSeqno>(params.substr(0, pos1)));
+                         params = params.substr(++pos1, params.size());
+                         auto pos2 = params.find(':');
+                         TRY_RESULT(cc_seq, td::to_integer_safe<ton::CatchainSeqno>(params.substr(0, pos2)));
+                         params = params.substr(++pos2, params.size());
+                         auto h = std::stoi(params.substr(0, params.size()).str());
+                         acts.push_back([&x, b_seq, cc_seq, h]() {
+                           td::actor::send_closure(x, &ValidatorEngine::add_unsafe_catchain_rotation, b_seq, cc_seq, h);
+                         });
+                         return td::Status::OK();
+                       });
   td::uint32 threads = 7;
   p.add_checked_option(
       't', "threads", PSTRING() << "number of threads (default=" << threads << ")", [&](td::Slice fname) {

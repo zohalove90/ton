@@ -904,6 +904,25 @@ class CheckDhtServersQuery : public Query {
   ton::PublicKeyHash id_;
 };
 
+class GetOverlaysStatsQuery : public Query {
+ public:
+  GetOverlaysStatsQuery(td::actor::ActorId<ValidatorEngineConsole> console, Tokenizer tokenizer)
+      : Query(console, std::move(tokenizer)) {
+  }
+  td::Status run() override;
+  td::Status send() override;
+  td::Status receive(td::BufferSlice data) override;
+  static std::string get_name() {
+    return "getoverlaysstats";
+  }
+  static std::string get_help() {
+    return "getoverlaysstats\tgets stats for all overlays";
+  }
+  std::string name() const override {
+    return get_name();
+  }
+};
+
 class SignCertificateQuery : public Query {
  public:
   SignCertificateQuery(td::actor::ActorId<ValidatorEngineConsole> console, Tokenizer tokenizer)
@@ -921,7 +940,6 @@ class SignCertificateQuery : public Query {
   std::string name() const override {
     return get_name();
   }
-
   void receive_pubkey(td::BufferSlice R);
   void receive_signature(td::BufferSlice R);
 
