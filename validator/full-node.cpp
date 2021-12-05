@@ -76,6 +76,26 @@ void FullNodeImpl::del_permanent_key(PublicKeyHash key, td::Promise<td::Unit> pr
   promise.set_value(td::Unit());
 }
 
+void FullNodeImpl::sign_shard_overlay_certificate(ShardIdFull shard_id, PublicKeyHash signed_key,
+                                                  td::uint32 expiry_at, td::uint32 max_size,
+                                                  td::Promise<td::BufferSlice> promise) {
+    auto it = shards_.find(shard_id);
+    if(it == shards_.end()) {
+      promise.set_error(td::Status::Error(ErrorCode::error, "shard not found"));
+    }
+    td::actor::send_closure(it->second, &FullNodeShard::sign_overlay_certificate, signed_key, expiry_at, max_size, std::move(promise));
+}
+
+void FullNodeImpl::import_shard_overlay_certificate(ShardIdFull shard_id, PublicKeyHash signed_key,
+                                                    std::shared_ptr<ton::overlay::Certificate> cert,
+                                                    td::Promise<td::Unit> promise) {
+    auto it = shards_.find(shard_id);
+    if(it == shards_.end()) {
+      promise.set_error(td::Status::Error(ErrorCode::error, "shard not found"));
+    }
+    td::actor::send_closure(it->second, &FullNodeShard::import_overlay_certificate, signed_key, cert, std::move(promise));
+}
+
 void FullNodeImpl::update_adnl_id(adnl::AdnlNodeIdShort adnl_id, td::Promise<td::Unit> promise) {
   adnl_id_ = adnl_id;
 

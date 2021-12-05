@@ -663,7 +663,9 @@ engine.validator.checkDhtServers id:int256 = engine.validator.DhtServersStatus;
 
 engine.validator.controlQuery data:bytes = Object;
 
-engine.validator.importCertificate overlay_id:int256 local_id:adnl.id.short key:engine.validator.KeyHash cert:overlay.Certificate = engine.validator.Success;
+engine.validator.importCertificate overlay_id:int256 local_id:adnl.id.short signed_key:engine.validator.KeyHash cert:overlay.Certificate = engine.validator.Success;
+engine.validator.signShardOverlayCertificate workchain:int shard:long signed_key:engine.validator.KeyHash expire_at:int max_size:int = overlay.Certificate;
+engine.validator.importShardOverlayCertificate workchain:int shard:long signed_key:engine.validator.KeyHash cert:overlay.Certificate = engine.validator.Success;
 
 ---types---
 

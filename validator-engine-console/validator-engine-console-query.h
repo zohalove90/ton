@@ -965,3 +965,59 @@ class ImportCertificateQuery : public Query {
   ton::PublicKeyHash kh_;
   std::string in_file_;
 };
+
+class SignShardOverlayCertificateQuery : public Query {
+ public:
+  SignShardOverlayCertificateQuery(td::actor::ActorId<ValidatorEngineConsole> console, Tokenizer tokenizer)
+      : Query(console, std::move(tokenizer)) {
+  }
+  td::Status run() override;
+  td::Status send() override;
+  td::Status receive(td::BufferSlice data) override;
+  static std::string get_name() {
+    return "signshardoverlaycert";
+  }
+  static std::string get_help() {
+    return "signshardoverlaycert <workchain> <shardprefix> <key> <expireat> <maxsize> <outfile>\tsign certificate for <key> in currently active shard overlay";
+  }
+  std::string name() const override {
+    return get_name();
+  }
+
+ private:
+
+  td::int32 wc_;
+  td::int64 shard_;
+  td::int32 expire_at_;
+  ton::PublicKeyHash key_;
+  td::uint32 max_size_;
+  std::string out_file_;
+};
+
+
+class ImportShardOverlayCertificateQuery : public Query {
+ public:
+  ImportShardOverlayCertificateQuery(td::actor::ActorId<ValidatorEngineConsole> console, Tokenizer tokenizer)
+      : Query(console, std::move(tokenizer)) {
+  }
+  td::Status run() override;
+  td::Status send() override;
+  td::Status receive(td::BufferSlice data) override;
+  static std::string get_name() {
+    return "importshardoverlaycert";
+  }
+  static std::string get_help() {
+    return "importshardoverlaycert <workchain> <shardprefix> <key> <certfile>\timport certificate for <key> in currently active shard overlay";
+  }
+  std::string name() const override {
+    return get_name();
+  }
+
+ private:
+
+  td::int32 wc_;
+  td::int64 shard_;
+  ton::PublicKeyHash key_;
+  std::string in_file_;
+};
+
