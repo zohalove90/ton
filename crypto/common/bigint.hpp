@@ -264,7 +264,7 @@ class AnyIntView {
     return digits[size() - 1];
   }
   double top_double() const {
-    return size() > 1 ? (double)digits[size() - 1] + (double)digits[size() - 2] * (1.0 / Tr::Base)
+    return size() > 1 ? (double)digits[size() - 1] + (double)digits[size() - 2] * Tr::InvBase
                       : (double)digits[size() - 1];
   }
   bool is_odd_any() const {
@@ -1323,15 +1323,14 @@ bool AnyIntView<Tr>::mod_div_any(const AnyIntView<Tr>& yp, AnyIntView<Tr>& quot,
       if (k > quot.max_size()) {
         return invalidate_bool();
       }
-      quot.set_size(max(k, 1));
+      quot.set_size(std::max(k, 1));
       quot.digits[0] = 0;
     } else {
       if (k >= quot.max_size()) {
         return invalidate_bool();
       }
       quot.set_size(k + 1);
-      double x_top = top_double();
-      word_t q = std::llrint(x_top * y_inv * Tr::InvBase);
+      word_t q = std::llrint(top_double() * y_inv * Tr::InvBase);
       quot.digits[k] = q;
       int i = yp.size() - 1;
       word_t hi = 0;
@@ -1346,8 +1345,7 @@ bool AnyIntView<Tr>::mod_div_any(const AnyIntView<Tr>& yp, AnyIntView<Tr>& quot,
     quot.digits[0] = 0;
   }
   while (--k >= 0) {
-    double x_top = top_double();
-    word_t q = std::llrint(x_top * y_inv);
+    word_t q = std::llrint(top_double() * y_inv);
     quot.digits[k] = q;
     for (int i = yp.size() - 1; i >= 0; --i) {
       Tr::sub_mul(&digits[k + i + 1], &digits[k + i], q, yp.digits[i]);
@@ -1355,15 +1353,18 @@ bool AnyIntView<Tr>::mod_div_any(const AnyIntView<Tr>& yp, AnyIntView<Tr>& quot,
     dec_size();
     digits[size() - 1] += (digits[size()] << word_shift);
   }
-  if (size() >= yp.size()) {
-    assert(size() == yp.size());
-    double x_top = top_double();
-    double t = x_top * y_inv * Tr::InvBase;
+  if (size() >= yp.size() - 1) {
+    assert(size() <= yp.size());
+    bool grow = (size() < yp.size());
+    double t = top_double() * y_inv * (grow ? Tr::InvBase * Tr::InvBase : Tr::InvBase);
     if (round_mode >= 0) {
       t += (round_mode ? 1 : 0.5);
     }
     word_t q = std::llrint(std::floor(t));
     if (q) {
+      if (grow) {
+        digits[inc_size()] = 0;
+      }
       for (int i = 0; i < size(); i++) {
         digits[i] -= q * yp.digits[i];
       }
@@ -1420,6 +1421,7 @@ bool AnyIntView<Tr>::mod_div_any(const AnyIntView<Tr>& yp, AnyIntView<Tr>& quot,
   return normalize_bool_any();
 }
 
+// works for almost-normalized numbers (digits -Base+1 .. Base-1, top non-zero), result also almost-normalized
 template <class Tr>
 bool AnyIntView<Tr>::mod_pow2_any(int exponent) {
   if (!is_valid()) {
@@ -1471,11 +1473,10 @@ bool AnyIntView<Tr>::mod_pow2_any(int exponent) {
     if (exponent >= max_size() * word_shift) {
       return invalidate_bool();
     }
-    if (q - word_shift >= 0) {
+    if (q - word_shift >= 0) {  // original top digit was a non-zero multiple of Base, impossible(?)
       digits[size() - 1] = 0;
       digits[inc_size()] = ((word_t)1 << (q - word_shift));
-    }
-    if (q - word_shift == -1 && size() < max_size()) {
+    } else if (q - word_shift == -1 && size() < max_size()) {
       digits[size() - 1] = -Tr::Half;
       digits[inc_size()] = 1;
     } else {
@@ -1483,8 +1484,9 @@ bool AnyIntView<Tr>::mod_pow2_any(int exponent) {
     }
     return true;
   } else if (v >= Tr::Half && size() < max_size()) {
-    digits[size() - 1] = v & (Tr::Base - 1);
-    digits[inc_size()] = (v >> word_shift);
+    word_t w = (((v >> (word_shift - 1)) + 1) >> 1);
+    digits[size() - 1] = v - (w << word_shift);
+    digits[inc_size()] = w;
     return true;
   } else {
     digits[size() - 1] = v;
